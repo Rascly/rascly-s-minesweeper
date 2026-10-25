@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rascly's minesweeper</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #controls {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #444;
+            color: white;
+            border: 2px solid #666;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #555; }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            gap: 2px;
+            background-color: #333;
+            padding: 5px;
+            border: 4px solid #555;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #888;
+            border: 2px solid;
+            border-color: #aaa #555 #555 #aaa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        }
+        .cell.revealed {
+            background-color: #c0c0c0;
+            border: 1px solid #777;
+        }
+        .cell[data-count="1"] { color: #0000ff; }
+        .cell[data-count="2"] { color: #008000; }
+        .cell[data-count="3"] { color: #ff0000; }
+        .cell[data-count="4"] { color: #000080; }
+        .cell[data-count="5"] { color: #800000; }
+        .cell[data-count="6"] { color: #008080; }
+        .cell[data-count="7"] { color: #000000; }
+        .cell[data-count="8"] { color: #808080; }
+
+        .cell.mine { background-color: red; }
+        .cell.flagged { background-color: orange; }
+    </style>
+</head>
+<body>
+
+    <h1>rascly was here &gt;:D</h1>
+    <div id="controls">
+        <button onclick="initGame()">Ragebait</button>
+    </div>
+    <div id="grid"></div>
+
+    <script>
+        const size = 10;
+        const mineCount = 20;
+        let board = [];
+        let revealedCount = 0;
+        let gameOver = false;
+        let isFlagMode = false;
+        let lastExplodedCell = null;
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            
+            if (key === 'f') {
+                isFlagMode = !isFlagMode;
+                updateHeader();
+            }
+            
+
+            if (key === '-' && gameOver) {
+                revivePlayer();
+            }
+        });
+
+        function updateHeader() {
+            let baseText = "rascly was here >:D";
+            if (isFlagMode) {
+                document.querySelector("h1").innerText = baseText + " (FLAG MODE)";
+            } else {
+                document.querySelector("h1").innerText = baseText;
+            }
+        }
+
+        function initGame() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            board = [];
+            revealedCount = 0;
+            gameOver = false;
+            isFlagMode = false;
+            lastExplodedCell = null;
+            updateHeader();
+
+            for (let r = 0; r < size; r++) {
+                board[r] = [];
+                for (let c = 0; c < size; c++) {
+                    board[r][c] = { r, c, mine: false, count: 0, revealed: false, flagged: false, element: null };
+                    
+                    const cellEl = document.createElement('div');
+                    cellEl.classList.add('cell');
+                    
+                    cellEl.addEventListener('click', () => {
+                        if (isFlagMode) {
+                            flagCell(r, c);
+                        } else {
+                            clickCell(r, c);
+                        }
+                    });
+                    
+                    cellEl.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        flagCell(r, c);
+                    });
+                    grid.appendChild(cellEl);
+                    board[r][c].element = cellEl;
+                }
+            }
+
+            let minesPlanted = 0;
+            while (minesPlanted < mineCount) {
+                let r = Math.floor(Math.random() * size);
+                let c = Math.floor(Math.random() * size);
+                if (!board[r][c].mine) {
+                    board[r][c].mine = true;
+                    minesPlanted++;
+                }
+            }
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    if (board[r][c].mine) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (board[r+dr] && board[r+dr][c+dc] && board[r+dr][c+dc].mine) count++;
+                        }
+                    }
+                    board[r][c].count = count;
+                }
+            }
+        }
+
+        function clickCell(r, c) {
+            if (gameOver || board[r][c].revealed || board[r][c].flagged) return;
+            
+            let cell = board[r][c];
+            cell.revealed = true;
+            cell.element.classList.add('revealed');
+
+            if (cell.mine) {
+                cell.element.classList.add('mine');
+                cell.element.innerText = 'splosion';
+                gameOver = true;
+                lastExplodedCell = cell;
+                updateHeader();
+                
+                setTimeout(() => { 
+                    alert('git gud noob'); 
+                }, 10);
+                return;
+            }
+
+            revealedCount++;
+            if (cell.count > 0) {
+                cell.element.innerText = cell.count;
+                cell.element.setAttribute('data-count', cell.count);
+            } else {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (board[r+dr] && board[r+dr][c+dc]) clickCell(r+dr, c+dc);
+                    }
+                }
+            }
+
+            if (revealedCount === (size * size) - mineCount) {
+                setTimeout(() => { 
+                    alert('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'); 
+                }, 10);
+                gameOver = true;
+            }
+        }
+
+        function flagCell(r, c) {
+            if (gameOver || board[r][c].revealed) return;
+            let cell = board[r][c];
+            cell.flagged = !cell.flagged;
+            if (cell.flagged) {
+                cell.element.classList.add('flagged');
+                cell.element.innerText = 'flag';
+            } else {
+                cell.element.classList.remove('flagged');
+                cell.element.innerText = '';
+            }
+        }
+
+        function revivePlayer() {
+            if (!gameOver || !lastExplodedCell) return;
+            
+            gameOver = false;
+            
+            let cell = lastExplodedCell;
+            cell.revealed = false;
+            cell.flagged = true;
+            cell.element.classList.remove('revealed', 'mine');
+            cell.element.classList.add('flagged');
+            cell.element.innerText = 'flag';
+            
+            lastExplodedCell = null;
+            updateHeader();
+        
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
